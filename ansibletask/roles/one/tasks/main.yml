@@ -1,0 +1,53 @@
+---
+
+
+- name: Update cache
+  apt:
+    update_cache: yes
+
+- name: Generate password
+  shell: python -c 'import crypt; print crypt.crypt("pass@123", "$6$random_salt")'
+  register: genpass
+
+- name: Install openssh
+  package: name=openssh-server state=present
+
+- service:
+    name: ssh
+    state: started
+    enabled: yes
+
+
+- name: Create user docker_root
+  user:
+    name: docker_root
+    uid: 1001
+    password: "{{ genpass.stdout }}"
+    group: root
+    state: present
+    createhome: yes
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: /home/docker_root/.ssh/id_rsa
+
+- name: Add docker_root to sudo group
+  user: name=docker_root groups=root append=yes state=present
+
+
+
+- name: Change SSH dir permission
+  file:
+    path: /home/docker_root/.ssh
+    owner: docker_root
+    state: directory
+    mode: 0700
+
+- name: Copy public key to volume
+  shell: cat /home/docker_root/.ssh/id_rsa.pub >/home/docker_root/sshkey/id_rsa.pub
+
+- name: Install openssh
+  package: name=openssh-server state=present
+
+
+- name: Set root password
+  user: name=root password="{{ genpass.stdout }}" update_password=always

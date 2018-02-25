@@ -1,0 +1,64 @@
+---
+
+
+- name: Update cache
+  apt:
+    update_cache: yes
+
+- name: Generate password
+  shell: python -c 'import crypt; print crypt.crypt("pass@123", "$6$random_salt")'
+  register: genpass
+
+- name: Create user docker_root
+  user:
+    name: docker_root
+    uid: 1001
+    password: "{{ genpass.stdout }}"
+    group: root
+    state: present
+    createhome: yes
+
+- name: Add docker_root to sudo group
+  user: name=docker_root groups=root append=yes state=present
+
+
+- name: Change SSH dir permission
+  file:
+    path: /home/docker_root/.ssh
+    owner: docker_root
+    state: directory
+    mode: 0700
+
+- name: Chnage permissions on authorized_keys
+  file:
+    path: /home/docker_root/.ssh/authorized_keys
+    state: touch
+    owner: docker_root
+    group: root
+    mode: 0600
+
+- name: Get SSH Pub key
+  shell: cat /home/docker_root/sshkey/id_rsa.pub
+  register: ssh_pub_key
+
+- name: Deploy SSH Public key
+  authorized_key: user=docker_root key="{{ ssh_pub_key.stdout }}"
+
+
+- name: Install openssh
+  package: name=openssh-server state=present
+
+- name: Create /var/run/sshd
+  file: path=/var/run/sshd state=directory owner=root group=root mode=0744
+
+- name: Set root password
+  user: name=root password="{{ genpass.stdout }}" update_password=always
+
+- name: Update sshd_config
+  lineinfile: dest=/etc/ssh/sshd_config
+              line='AuthorizedKeysFile     %h/.ssh/authorized_keys'
+
+
+- service:
+    name: ssh
+    state: restarted

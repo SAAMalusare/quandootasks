@@ -1,0 +1,39 @@
+version: "2"
+settings:
+
+  conductor:
+    base: ubuntu:trusty
+
+  project_name: quandoo
+
+services:
+
+  c_01:
+     from: "ubuntu:trusty"
+
+     volumes:
+       - /home/suhas/devops/workdir/ansible/anstmp/sshkey:/home/docker_root/sshkey
+
+     roles:
+       - one
+
+     entrypoint: [/home/docker_root/sshkey/entrypoint.sh]
+     command: sleep infinity
+     state: started
+
+
+  c_02:
+     from: "ubuntu:trusty"
+
+     volumes:
+       - /home/suhas/devops/workdir/ansible/anstmp/sshkey:/home/docker_root/sshkey
+
+     roles:
+       - two
+
+     entrypoint: [/home/docker_root/sshkey/entrypoint.sh]
+     command: sleep infinity
+     state: started
+
+
+registries: {}
